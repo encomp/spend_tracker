@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spend_tracker/pages/home/widgets/menu.dart';
+import 'package:spend_tracker/pages/index.dart';
 
 class HomePage extends StatelessWidget {
   @override
@@ -22,18 +23,26 @@ class HomePage extends StatelessWidget {
         children: <Widget>[
           _TotalBudget(amount: amount),
           Container(
-              padding: EdgeInsets.only(bottom: 10),
+              padding: EdgeInsets.only(bottom: 60),
               height: MediaQuery.of(context).size.height - 196,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
                   _BarLine(100, Colors.red, 'Withdraw', 506),
-                  _BarLine(400, Colors.green, 'Deposit', 1709)
+                  _BarLine(375, Colors.green, 'Deposit', 1709)
                 ],
               )),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+              context, MaterialPageRoute(builder: (_) => ItemPage()));
+        },
+        child: Icon(Icons.add),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }
