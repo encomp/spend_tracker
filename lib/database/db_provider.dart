@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:path/path.dart';
+import 'package:spend_tracker/models/balance.dart';
+import 'package:spend_tracker/models/item.dart';
+import 'package:spend_tracker/models/item_type.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spend_tracker/models/account.dart';
@@ -34,6 +37,88 @@ class DbProvider {
     return list;
   }
 
+  Future<int> createItemType(ItemType itemType) async {
+    final db = await database;
+    return await db.insert('ItemType', itemType.toMap());
+  }
+
+  Future<int> updateItemType(ItemType itemType) async {
+    final db = await database;
+    return await db.update('ItemType', itemType.toMap(),
+        where: 'id = ?', whereArgs: [itemType.id]);
+  }
+
+  Future<List<ItemType>> getAllItemTypes() async {
+    final db = await database;
+    var res = await db.query('ItemType');
+    List<ItemType> list =
+        res.isNotEmpty ? res.map((a) => ItemType.fromMap(a)).toList() : [];
+    return list;
+  }
+
+  Future createItem(Item item) async {
+    final db = await database;
+    var accounts =
+        await db.query('Account', where: "id = ?", whereArgs: [item.accountId]);
+    var account = Account.fromMap(accounts[0]);
+    var balance = account.balance;
+    if (item.isDeposit) {
+      balance += item.amount;
+    } else {
+      balance -= item.amount;
+    }
+    await db.transaction((txn) async {
+      await txn.rawUpdate("UPDATE Account SET balance = " +
+          balance.toString() +
+          " WHERE id = " +
+          account.id.toString());
+      await txn.insert('Item', item.toMap());
+    });
+  }
+
+  Future<List<Item>> getAllItems() async {
+    final db = await database;
+    var res = await db.query("Item");
+    List<Item> items =
+        res.isNotEmpty ? res.map((e) => Item.fromMap(e)).toList() : [];
+    return items;
+  }
+
+  Future deleteItem(Item item) async {
+    final db = await database;
+    var accounts =
+        await db.query('Account', where: "id = ?", whereArgs: [item.accountId]);
+    var account = Account.fromMap(accounts[0]);
+    var balance = account.balance;
+    if (item.isDeposit) {
+      balance -= item.amount;
+    } else {
+      balance += item.amount;
+    }
+    await db.transaction((txn) async {
+      await txn.rawUpdate("UPDATE Account SET balance = " +
+          balance.toString() +
+          " WHERE id = " +
+          account.id.toString());
+      await txn.delete('Item', where: "id = ?", whereArgs: [item.id]);
+    });
+  }
+
+  Future<Balance> getBalance() async {
+    final items = await getAllItems();
+    double withdraw = 0;
+    double deposit = 0;
+    items.forEach((element) {
+      if (element.isDeposit) {
+        deposit += element.amount;
+      } else {
+        deposit -= element.amount;
+      }
+    });
+    return Balance(
+        withdraw: withdraw, deposit: deposit, total: deposit - withdraw);
+  }
+
   void dispose() {
     _database?.close();
     _database = null;
@@ -61,5 +146,25 @@ class DbProvider {
         "codePoint INTEGER,"
         "balance REAL"
         ")");
+    await db.execute("CREATE TABLE ItemType ("
+        "id INTEGER PRIMARY KEY,"
+        "name TEXT,"
+        "codePoint INTEGER"
+        ")");
+    await db.execute("CREATE TABLE Item ("
+        "id INTEGER PRIMARY KEY,"
+        "description TEXT,"
+        "typeId INTEGER,"
+        "amount REAL,"
+        "date TEXT,"
+        "isDeposit INTEGER,"
+        "accountId INTEGER,"
+        "FOREIGN KEY (typeId) REFERENCES ItemType(id),"
+        "FOREIGN KEY (accountId) REFERENCES Account(id)"
+        ")");
+    await db.execute("INSERT INTO Account VALUES (1, 'Checking', 59471, 0.00)");
+    await db.execute("INSERT INTO Account VALUES (2, 'Saving', 59471, 0.00)");
+    await db.execute("INSERT INTO ItemType VALUES (1, 'Paycheck', 59471)");
+    await db.execute("INSERT INTO ItemType VALUES (2, 'Atm Withdraw', 59471)");
   }
 }
