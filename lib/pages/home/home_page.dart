@@ -5,13 +5,15 @@ import 'package:spend_tracker/database/db_provider.dart';
 import 'package:spend_tracker/models/balance.dart';
 import 'package:spend_tracker/pages/home/widgets/menu.dart';
 import 'package:spend_tracker/pages/items/item_page.dart';
+import 'package:spend_tracker/routes.dart';
 
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with RouteAware, WidgetsBindingObserver {
   double _withdraw = 0;
   double _deposit = 0;
   double _wHeight = 0;
@@ -24,6 +26,33 @@ class _HomePageState extends State<HomePage> {
     var dbProvider = Provider.of<DbProvider>(context);
     var balance = await dbProvider.getBalance();
     _setHeightBalances(balance);
+    routeObserver.subscribe(this, ModalRoute.of(context));
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    routeObserver.unsubscribe(this);
+    WidgetsBinding.instance.removeObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    print('did change app life cycle state');
+    super.didChangeAppLifecycleState(state);
+  }
+
+  @override
+  void didPopNext() {
+    print('did pop next');
+    super.didPopNext();
+  }
+
+  @override
+  void didPushNext() {
+    print('did push next');
+    super.didPushNext();
   }
 
   void _setHeightBalances(Balance balance) {
@@ -93,22 +122,22 @@ class _HomePageState extends State<HomePage> {
           color: Theme.of(context).primaryColor,
         ),
         itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 1,
-                child: const Text('Deposit'),
-              ),
-              PopupMenuItem(
-                value: 2,
-                child: const Text('Withdraw'),
-              )
-            ],
+          PopupMenuItem(
+            value: 1,
+            child: const Text('Deposit'),
+          ),
+          PopupMenuItem(
+            value: 2,
+            child: const Text('Withdraw'),
+          )
+        ],
         onSelected: (int value) {
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => ItemPage(
-                    isDeposit: value == 1,
-                  ),
+                isDeposit: value == 1,
+              ),
             ),
           );
         },
