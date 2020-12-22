@@ -13,12 +13,25 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage>
-    with RouteAware, WidgetsBindingObserver {
+    with RouteAware, WidgetsBindingObserver, TickerProviderStateMixin {
   double _withdraw = 0;
   double _deposit = 0;
   double _wHeight = 0;
   double _dHeight = 0;
   double _balance = 0;
+  double _opacity = 0.0;
+  double _fontSize = 1;
+  AnimationController _controller;
+  Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        AnimationController(vsync: this, duration: Duration(seconds: 1));
+    _animation = Tween<double>(begin: 0, end: 1).animate(_controller);
+    _controller.forward();
+  }
 
   @override
   void didChangeDependencies() async {
@@ -35,6 +48,7 @@ class _HomePageState extends State<HomePage>
     super.dispose();
     routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
+    _controller.dispose();
   }
 
   @override
@@ -46,12 +60,14 @@ class _HomePageState extends State<HomePage>
   @override
   void didPopNext() {
     print('did pop next');
+    _controller.forward();
     super.didPopNext();
   }
 
   @override
   void didPushNext() {
     print('did push next');
+    _controller.reset();
     super.didPushNext();
   }
 
@@ -77,6 +93,8 @@ class _HomePageState extends State<HomePage>
       _withdraw = balance.withdraw;
       _deposit = balance.deposit;
       _balance = balance.total;
+      _opacity = 1.0;
+      _fontSize = 40.0;
     });
   }
 
@@ -99,7 +117,13 @@ class _HomePageState extends State<HomePage>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _TotalBudget(amount: formatter.format(_balance)),
+          AnimatedOpacity(
+              opacity: _opacity,
+              duration: Duration(seconds: 4),
+              child: _TotalBudget(
+                amount: formatter.format(_balance),
+                fontSize: _fontSize,
+              )),
           Container(
               padding: EdgeInsets.only(bottom: 50),
               height: MediaQuery.of(context).size.height - 196,
@@ -107,10 +131,20 @@ class _HomePageState extends State<HomePage>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
-                  _BarLine(_wHeight, Colors.red, 'Withdraw',
-                      formatter.format(_withdraw)),
-                  _BarLine(_dHeight, Colors.green, 'Deposit',
-                      formatter.format(_deposit))
+                  _BarLine(
+                    _wHeight,
+                    Colors.red,
+                    'Withdraw',
+                    formatter.format(_withdraw),
+                    _animation,
+                  ),
+                  _BarLine(
+                    _dHeight,
+                    Colors.green,
+                    'Deposit',
+                    formatter.format(_deposit),
+                    _animation,
+                  )
                 ],
               )),
         ],
@@ -152,23 +186,30 @@ class _BarLine extends StatelessWidget {
     this.height,
     this.color,
     this.label,
-    this.amount, {
+    this.amount,
+    this.animation, {
     Key key,
   }) : super(key: key);
   final double height;
   final String label;
   final Color color;
   final String amount;
+  final Animation<double> animation;
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Container(
-          height: height,
-          width: 100,
-          color: color,
+        AnimatedBuilder(
+          animation: animation,
+          builder: (_, __) {
+            return Container(
+              height: animation.value * height,
+              width: 100,
+              color: color,
+            );
+          },
         ),
         Text(label),
         Text(amount),
@@ -181,9 +222,11 @@ class _TotalBudget extends StatelessWidget {
   const _TotalBudget({
     Key key,
     @required this.amount,
+    @required this.fontSize,
   }) : super(key: key);
 
   final String amount;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -191,11 +234,14 @@ class _TotalBudget extends StatelessWidget {
       height: 100,
       margin: EdgeInsets.all(10),
       alignment: Alignment.center,
-      child: Text(
-        '\$$amount',
+      child: AnimatedDefaultTextStyle(
+        duration: Duration(seconds: 3),
         style: TextStyle(
           color: Colors.white,
-          fontSize: 40,
+          fontSize: fontSize,
+        ),
+        child: Text(
+          '\$$amount',
         ),
       ),
       decoration: BoxDecoration(
